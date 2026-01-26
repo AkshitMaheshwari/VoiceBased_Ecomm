@@ -20,16 +20,25 @@ class ChromaClient:
     
 chroma = ChromaClient()
 
-def retreive(query,user_memory):
-    filters = {}
+def retrieve(query, user_memory):
+    """Retrieve products with proper Chroma filter format."""
+    conditions = []
 
     if user_memory.pref["brand"]:
-        filters['brand'] = user_memory.pref["brand"]
+        conditions.append({"brand": user_memory.pref["brand"]})
 
     if user_memory.pref["category"]:
-        filters["category"] = user_memory.pref["category"]
+        conditions.append({"category": user_memory.pref["category"]})
 
     if user_memory.pref["budget"]:
-        filters["price"] = {"$lte":user_memory.pref["budget"]}
+        conditions.append({"price": {"$lte": user_memory.pref["budget"]}})
     
-    return chroma.search(query,k=3,filters = filters if filters else None)
+    # Chroma requires $and for multiple filters
+    if len(conditions) > 1:
+        filters = {"$and": conditions}
+    elif len(conditions) == 1:
+        filters = conditions[0]
+    else:
+        filters = None
+    
+    return chroma.search(query, k=3, filters=filters)

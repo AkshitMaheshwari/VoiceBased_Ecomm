@@ -1,48 +1,63 @@
 import os
 import asyncio
+from elevenlabs import ElevenLabs
+from elevenlabs import stream as eleven_stream
 from dotenv import load_dotenv
-from elevenlabs import ElevenLabs, stream
+
 load_dotenv()
 
-client = ElevenLabs(api_key = os.getenv("ELEVEN_LABS"))
-VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"
-MODEL_ID = "eleven_turbo_v2_5"
+client = ElevenLabs(api_key=os.getenv("ELEVEN_LABS"))
+
+VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"  # Change as needed
+MODEL_ID = "eleven_turbo_v2_5"  # Fastest model
 
 
-async def stream_tts(text_generator):
+def speak(text: str):
+    """Simple TTS - waits for full text."""
+    audio = client.text_to_speech.convert(
+        voice_id=VOICE_ID,
+        text=text,
+        model_id=MODEL_ID
+    )
+    eleven_stream(audio)
+
+
+async def stream_tts(text_generator) -> str:
     """
-    Takes a text generator (LLM stream),
-    speaks sentence-by-sentence.
-    Returns full spoken text.
+    Streaming TTS - speaks while LLM generates.
+    Returns full response text.
     """
-
     buffer = ""
-    full_text = ""
-
+    full_response = ""
+    
     for chunk in text_generator:
-        full_text += chunk
         buffer += chunk
-        print(chunk, end="", flush=True)
-
-        if any(p in buffer for p in [".", "!", "?"]):
-            await _speak(buffer)
+        full_response += chunk
+        print(chunk, end="", flush=True)  # Real-time console output
+        
+        # Speak when we hit sentence boundary
+        if any(p in chunk for p in ['.', '!', '?']):
+            await _speak_async(buffer)
             buffer = ""
-
+    
+    # Speak remaining text
     if buffer.strip():
-        await _speak(buffer)
+        await _speak_async(buffer)
+    
+    return full_response
 
-    return full_text
 
-
-async def _speak(text: str):
+async def _speak_async(text: str):
+    """Async wrapper for TTS."""
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, _speak_sync, text)
 
 
 def _speak_sync(text: str):
+    """Sync TTS call."""
     audio = client.text_to_speech.convert_as_stream(
         voice_id=VOICE_ID,
-        model_id=MODEL_ID,
         text=text,
+        model_id=MODEL_ID
     )
-    stream(audio)
+    eleven_stream(audio)

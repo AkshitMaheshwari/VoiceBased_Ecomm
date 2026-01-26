@@ -1,6 +1,6 @@
 class UserMemory:
     def __init__(self):
-        self.pref = {"budget":None,"brand":None,"Category":None}
+        self.pref = {"budget": None, "brand": None, "category": None}
 
     def update(self,text):
         t = text.lower()
