@@ -7,7 +7,64 @@ An AI-powered voice calling agent for e-commerce that helps customers find produ
 ![ElevenLabs](https://img.shields.io/badge/ElevenLabs-TTS-purple)
 ![Groq](https://img.shields.io/badge/Groq-LLM-orange)
 
+---
 
+## 📖 Project Overview
+
+This project is a **Voice-based AI Shopping Assistant** that allows customers to call a phone number and shop for products using natural conversation. Here's how we built it step-by-step:
+
+### 🔄 Complete Pipeline
+
+#### 1️⃣ Data Collection
+We sourced our product catalog from the **Walmart Products Dataset**:
+- 📦 **Dataset**: [Walmart Dataset Samples](https://github.com/luminati-io/Walmart-dataset-samples)
+- Contains product names, descriptions, prices, categories, and more
+- Raw CSV file stored in `DataCleaning/walmart-products.csv`
+
+#### 2️⃣ Data Cleaning & Preprocessing
+The raw data needed cleaning before it could be used effectively:
+- Removed duplicate products and null values
+- Normalized price formats (removed `$` symbols, converted to float)
+- Extracted brand names from product titles
+- Categorized products (Laptops, Smartphones, etc.)
+- Output: `DataCleaning/cleaned_data.csv`
+
+#### 3️⃣ Vector Database Setup (ChromaDB)
+Converted cleaned data into searchable embeddings:
+- Used **HuggingFace Embeddings** (`all-MiniLM-L6-v2`) to create vector representations
+- Stored in **ChromaDB** with both content and metadata
+- **Page Content**: Product name + description (for semantic search)
+- **Metadata**: Price, Brand, Category (for filtering)
+
+This allows us to search products semantically ("show me gaming laptops") while also filtering by budget, brand, or category.
+
+#### 4️⃣ Retriever with Smart Filtering
+Built a retriever that combines semantic search with metadata filters:
+- User says "Samsung phone under 20000" 
+- System extracts: `brand=Samsung`, `category=Smartphone`, `budget=20000`
+- ChromaDB query: Semantic search + `$and` filters
+- Returns top 3 matching products
+
+#### 5️⃣ Session Memory
+Implemented two types of memory for natural conversations:
+- **Conversation Memory**: Remembers last 10 exchanges in the call
+- **User Preferences**: Tracks budget, brand, and category mentioned by user
+
+#### 6️⃣ LLM Engine (Groq)
+Connected everything to a fast LLM for response generation:
+- Uses **Groq** with `llama-3.1-8b-instant` (super fast - 500+ tokens/sec)
+- Takes: Retrieved products + Conversation history + User preferences + Current query
+- Generates: Short, voice-friendly responses (1-2 sentences)
+
+#### 7️⃣ Voice Integration (Twilio + ElevenLabs)
+Final integration for phone-based interaction:
+- **Twilio Voice**: Handles incoming calls and speech-to-text
+- **ElevenLabs**: Converts AI responses to natural human-like voice
+- **FastAPI**: Webhook server that orchestrates everything
+
+**Result**: Customer calls → Speaks → Gets AI response in natural voice → Continues shopping! 🛒
+
+---
 
 ## 🏗 Architecture
 
@@ -157,35 +214,7 @@ ngrok http 8000
 
 ---
 
-## 🔄 Pipeline Details
 
-### 1️⃣ Data Cleaning (`DataCleaning/`)
-
-```python
-# Sample cleaning operations
-df = pd.read_csv("walmart-products.csv")
-df = df.dropna(subset=["Product Name", "Sale Price"])
-df["price"] = df["Sale Price"].str.replace("$", "").astype(float)
-df["brand"] = df["Product Name"].apply(extract_brand)
-df.to_csv("cleaned_data.csv", index=False)
-```
-
-### 2️⃣ Vector Store - ChromaDB (`Ingestion/chroma.py`)
-
-```python
-from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
-
-# Create embeddings
-embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-
-# Store with metadata
-db = Chroma.from_documents(
-    documents=docs,
-    embedding=embeddings,
-    persist_directory="./chroma_db"
-)
-```
 
 **Metadata stored:**
 | Field | Type | Example | Use |
@@ -194,75 +223,7 @@ db = Chroma.from_documents(
 | `brand` | string | "Samsung" | Brand filtering |
 | `category` | string | "Laptop" | Category filtering |
 
-### 3️⃣ Retriever (`retriever.py`)
 
-```python
-def retrieve(query, user_memory):
-    conditions = []
-    
-    if user_memory.pref["brand"]:
-        conditions.append({"brand": user_memory.pref["brand"]})
-    
-    if user_memory.pref["budget"]:
-        conditions.append({"price": {"$lte": user_memory.pref["budget"]}})
-    
-    # ChromaDB requires $and for multiple filters
-    if len(conditions) > 1:
-        filters = {"$and": conditions}
-    
-    return chroma.similarity_search(query, k=3, filter=filters)
-```
-
-### 4️⃣ Session Memory (`SessionMemory/`)
-
-**Conversation Memory** - Stores recent exchanges:
-```python
-class ConversationMemory:
-    def __init__(self, max_length=10):
-        self.buffer = deque(maxlen=max_length)
-    
-    def add_user(self, text): ...
-    def add_ai(self, text): ...
-    def context(self): ...  # Returns formatted history
-```
-
-**User Memory** - Extracts preferences from speech:
-```python
-class UserMemory:
-    def __init__(self):
-        self.pref = {"budget": None, "brand": None, "category": None}
-    
-    def update(self, text):
-        # Extract budget: "under 5000" → budget=5000
-        # Extract brand: "Samsung phone" → brand="Samsung"
-        # Extract category: "laptop" → category="Laptop"
-```
-
-### 5️⃣ LLM Engine (`llm.py`)
-
-```python
-from groq import Groq
-
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-
-def generate_answer(context, convo, prefs, query):
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "system", "content": f"Products:\n{context}"},
-        {"role": "system", "content": f"User preferences: {prefs}"},
-        {"role": "user", "content": f"Conversation:\n{convo}\n\nQuery: {query}"}
-    ]
-    
-    response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        messages=messages,
-        max_tokens=80,  # Short for voice
-        temperature=0.7
-    )
-    return response.choices[0].message.content
-```
-
-### 6️⃣ Twilio + ElevenLabs (`app.py`)
 
 **Call Flow:**
 ```
@@ -288,18 +249,7 @@ def generate_answer(context, convo, prefs, query):
    (Loop until hangup)
 ```
 
-**ElevenLabs Integration:**
-```python
-def generate_elevenlabs_audio(text, base_url):
-    audio = eleven_client.text_to_speech.convert(
-        voice_id=VOICE_ID,
-        text=text,
-        model_id="eleven_turbo_v2_5",  # Low latency
-        output_format="mp3_44100_128"
-    )
-    # Save and return URL for Twilio to fetch
-    return f"{base_url}/audio/{filename}"
-```
+
 
 ---
 
@@ -347,16 +297,6 @@ This tests:
 
 ---
 
-## 🔮 Future Improvements
-
-- [ ] Streaming TTS (ElevenLabs WebSocket)
-- [ ] Cart management
-- [ ] Order placement
-- [ ] Multi-language support
-- [ ] Voice authentication
-- [ ] Analytics dashboard
-
----
 
 ## 📝 License
 
