@@ -16,7 +16,7 @@ This project is a **Voice-based AI Shopping Assistant** that allows customers to
 ### 🔄 Complete Pipeline
 
 #### 1️⃣ Data Collection
-We sourced our product catalog from the **Walmart Products Dataset**:
+I sourced my product catalog from the **Walmart Products Dataset**:
 - 📦 **Dataset**: [Walmart Dataset Samples](https://github.com/luminati-io/Walmart-dataset-samples)
 - Contains product names, descriptions, prices, categories, and more
 - Raw CSV file stored in `DataCleaning/walmart-products.csv`
