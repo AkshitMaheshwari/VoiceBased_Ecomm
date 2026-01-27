@@ -83,25 +83,26 @@ def interactive_test():
         if not query:
             continue
         
+        # Always run full pipeline for each user query
         test_full_pipeline(query)
 
 
 if __name__ == "__main__":
     # Quick tests
-    print("=" * 50)
-    print("🧪 RETRIEVER TEST")
-    print("=" * 50)
+    # print("=" * 50)
+    # print("🧪 RETRIEVER TEST")
+    # print("=" * 50)
     
-    # Test 1: Basic retriever test
-    test_retriever("what is the price of the apple iphone 10")
+    # # Test 1: Basic retriever test
+    # test_retriever("what is the price of the apple iphone 10")
     
-    # Test 2: Full pipeline
-    print("\n" + "=" * 50)
-    print("🧪 FULL PIPELINE TEST")
-    print("=" * 50)
+    # # Test 2: Full pipeline
+    # print("\n" + "=" * 50)
+    # print("🧪 FULL PIPELINE TEST")
+    # print("=" * 50)
     
-    test_full_pipeline("I want a laptop for gaming under 50000")
+    # test_full_pipeline()
     
-    # Test 3: Interactive mode
+    # Test 3: Interactive mode (always full pipeline)
     print("\n" + "=" * 50)
     interactive_test()
