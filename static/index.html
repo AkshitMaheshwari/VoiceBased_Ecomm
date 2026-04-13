@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Voice shopping assistant</title>
+    <link rel="stylesheet" href="/static/styles.css?v=4" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="command-deck" aria-labelledby="page-title">
+        <div class="intro">
+          <p class="eyebrow">Live voice commerce</p>
+          <h1 id="page-title">Voice shopping assistant</h1>
+          <p class="lede">Ask for products, compare options, and keep the conversation moving.</p>
+        </div>
+
+        <div class="voice-stage" aria-hidden="true">
+          <div class="signal-ring">
+            <div class="signal-core">
+              <span></span>
+            </div>
+          </div>
+          <div class="waveform">
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          </div>
+        </div>
+
+        <section class="call-console" aria-labelledby="call-title">
+          <div class="section-head">
+            <p>Browser call</p>
+            <h2 id="call-title">Start a secure voice session</h2>
+          </div>
+
+          <label class="field">
+            <span>Client identity</span>
+            <input type="text" id="identity" placeholder="demo-user" autocomplete="off" />
+          </label>
+
+          <label class="field">
+            <span>X-Token-Secret</span>
+            <input type="password" id="token-secret" placeholder="optional" autocomplete="off" />
+          </label>
+
+          <div class="actions">
+            <button type="button" id="btn-start" class="btn primary">Start voice call</button>
+            <button type="button" id="btn-hangup" class="btn" disabled>Hang up</button>
+          </div>
+
+          <p id="status" class="status" aria-live="polite">Ready.</p>
+        </section>
+      </section>
+
+      <section class="market-lane" aria-label="Shopping inspiration">
+        <img
+          src="https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80"
+          alt="Folded clothing in a modern retail display"
+        />
+        <img
+          src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=80"
+          alt="Minimal watch product display"
+        />
+        <img
+          src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=80"
+          alt="Headphones on a vivid product backdrop"
+        />
+      </section>
+
+      <section class="health-console" aria-labelledby="health-title">
+        <div class="section-head">
+          <p>Service health</p>
+          <h2 id="health-title">Runtime status</h2>
+        </div>
+        <button type="button" id="btn-refresh-health" class="btn small">Refresh</button>
+        <pre id="health" class="health">Loading...</pre>
+      </section>
+    </main>
+
+    <script src="https://unpkg.com/@twilio/voice-sdk@2.18.1/dist/twilio.min.js"></script>
+    <script src="/static/app.js?v=4"></script>
+  </body>
+</html>
