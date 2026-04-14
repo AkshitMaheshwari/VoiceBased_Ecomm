@@ -6,7 +6,9 @@ from langchain_core.documents import Document
 from dotenv import load_dotenv
 load_dotenv()
 
-embedding  = HuggingFaceEmbeddings(model_name = os.getenv("EMBEDDING_MODEL"))
+embedding = HuggingFaceEmbeddings(
+    model_name=os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
+)
 csv_path = "DataCleaning/cleaned_data.csv"
 df = pd.read_csv(csv_path)
 documents = []

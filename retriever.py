@@ -1,15 +1,21 @@
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
+BASE_DIR = Path(__file__).resolve().parent
+CHROMA_DIR = BASE_DIR / "chroma_db"
+
 class ChromaClient:
     def __init__ (self):
-        self.embeddings = HuggingFaceEmbeddings(model_name = os.getenv("EMBEDDING_MODEL"))
+        self.embeddings = HuggingFaceEmbeddings(
+            model_name=os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
+        )
 
         self.db = Chroma(
-            persist_directory="./chroma_db",
+            persist_directory=str(CHROMA_DIR),
             embedding_function = self.embeddings
         )
 
@@ -18,7 +24,14 @@ class ChromaClient:
             return self.db.similarity_search(query,k=k,filter = filters)
         return self.db.similarity_search(query,k=k)
     
-chroma = ChromaClient()
+chroma = None
+
+
+def get_chroma():
+    global chroma
+    if chroma is None:
+        chroma = ChromaClient()
+    return chroma
 
 def retrieve(query, user_memory):
     """Retrieve products with proper Chroma filter format."""
@@ -41,4 +54,4 @@ def retrieve(query, user_memory):
     else:
         filters = None
     
-    return chroma.search(query, k=3, filters=filters)
+    return get_chroma().search(query, k=3, filters=filters)

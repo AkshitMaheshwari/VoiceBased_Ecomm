@@ -1,5 +1,5 @@
-pandas 
-numpy 
+pandas
+numpy
 langchain
 neo4j
 python-dotenv
@@ -16,4 +16,9 @@ langchain_community
 langchain_core
 langchain_openai
 langchain_groq
-langchain__chroma
+langchain-chroma
+fastapi
+uvicorn
+twilio
+groq
+python-multipart

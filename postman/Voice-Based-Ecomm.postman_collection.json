@@ -1,0 +1,174 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-voiceecomm01",
+    "name": "Voice-Based E-commerce (Twilio webhooks)",
+    "description": "Tests FastAPI: health, Twilio token, voice webhooks.\n\n**Before you run:**\n1. `python app.py` (port 8000)\n2. `.env` with `GROQ_API_KEY`, `ELEVEN_LABS`, Chroma ingested\n3. `baseUrl` = `http://localhost:8000` or your **HTTPS** ngrok URL\n4. For **POST /api/twilio/token**, set Twilio API key + TwiML App env vars\n\nTwiML responses use **application/xml**. Copy `/audio/<uuid>.mp3` from `<Play>` for the **Get audio file** request.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000" },
+    { "key": "callSid", "value": "CA_POSTMAN_TEST_001" },
+    { "key": "audioFilename", "value": "paste-uuid-from-twiml.mp3" }
+  ],
+  "item": [
+    {
+      "name": "0. Health (GET /api/health)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/health",
+        "description": "Returns which env groups are set and whether `chroma_db` exists (no secret values)."
+      },
+      "response": []
+    },
+    {
+      "name": "0b. Twilio token (POST /api/twilio/token)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identity\": \"postman-demo\"\n}"
+        },
+        "url": "{{baseUrl}}/api/twilio/token",
+        "description": "Requires `TWILIO_ACCOUNT_SID`, `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET`, `TWILIO_TWIML_APP_SID`. If `TOKEN_ENDPOINT_SECRET` is set, add header `X-Token-Secret`."
+      },
+      "response": []
+    },
+    {
+      "name": "1. Incoming call (POST /webhooks/voice/incoming)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "CallSid",
+              "value": "{{callSid}}",
+              "description": "Optional; mimics Twilio.",
+              "disabled": true
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/webhooks/voice/incoming",
+        "description": "Canonical webhook. `<Gather action>` points to absolute `/webhooks/voice/process-speech`."
+      },
+      "response": []
+    },
+    {
+      "name": "2. Legacy incoming (POST /)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": { "mode": "urlencoded", "urlencoded": [] },
+        "url": "{{baseUrl}}/",
+        "description": "Same TwiML as (1); kept for older Twilio number configs."
+      },
+      "response": []
+    },
+    {
+      "name": "3. Incoming call alias (POST /incoming-call)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": { "mode": "urlencoded", "urlencoded": [] },
+        "url": "{{baseUrl}}/incoming-call",
+        "description": "Alias for incoming call."
+      },
+      "response": []
+    },
+    {
+      "name": "4. Process speech — user said something",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('TwiML XML', () => {",
+              "  pm.expect(pm.response.headers.get('Content-Type')).to.include('xml');",
+              "  pm.expect(pm.response.text()).to.include('<Response');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "SpeechResult",
+              "value": "Show me a Samsung smartphone under 500 dollars",
+              "type": "text"
+            },
+            {
+              "key": "CallSid",
+              "value": "{{callSid}}",
+              "type": "text"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/webhooks/voice/process-speech",
+        "description": "Canonical `Gather` callback. Use same `CallSid` across turns for session memory."
+      },
+      "response": []
+    },
+    {
+      "name": "5. Process speech — legacy URL",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "SpeechResult",
+              "value": "Show me a Samsung smartphone under 500 dollars",
+              "type": "text"
+            },
+            {
+              "key": "CallSid",
+              "value": "{{callSid}}",
+              "type": "text"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/process-speech",
+        "description": "Legacy path; still supported."
+      },
+      "response": []
+    },
+    {
+      "name": "6. Process speech — empty (no transcript)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "SpeechResult", "value": "", "type": "text" },
+            { "key": "CallSid", "value": "{{callSid}}", "type": "text" }
+          ]
+        },
+        "url": "{{baseUrl}}/webhooks/voice/process-speech",
+        "description": "No transcript branch."
+      },
+      "response": []
+    },
+    {
+      "name": "7. Get audio file (GET /audio/{filename})",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/audio/{{audioFilename}}",
+        "description": "Paste filename from `<Play>` in TwiML."
+      },
+      "response": []
+    }
+  ]
+}
