@@ -9,6 +9,7 @@ load_dotenv()
 from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import Response, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 from twilio.twiml.voice_response import VoiceResponse, Gather
 from twilio.jwt.access_token import AccessToken
 from twilio.jwt.access_token.grants import VoiceGrant
@@ -39,10 +40,8 @@ def safe_log(message: str) -> None:
 
 @app.on_event("startup")
 async def warm_chroma_db() -> None:
-    from retriever import get_chroma
-
-    safe_log("Warming ChromaDB retriever...")
-    get_chroma()
+    # Retriever now uses eager initialization at import time.
+    from retriever import retrieve
     safe_log("ChromaDB retriever ready.")
 
 
@@ -173,6 +172,48 @@ async def serve_index():
             status_code=404,
         )
     return FileResponse(index)
+
+
+class ChatRequest(BaseModel):
+    session_id: str
+    query: str
+
+@app.post("/api/chat")
+async def chat_endpoint(request: Request, body: ChatRequest):
+    base_url = resolve_public_base_url(request)
+    session_id = body.session_id.strip()
+    query = body.query.strip()
+
+    if not query:
+        raise HTTPException(status_code=400, detail="Query cannot be empty")
+
+    if not session_id:
+        session_id = "default_session"
+
+    if session_id not in sessions:
+        sessions[session_id] = {"memory": UserMemory(), "history": []}
+
+    session = sessions[session_id]
+    session["memory"].update(query)
+
+    try:
+        ai_response = get_response(query, session)
+        session["history"].append({"user": query, "ai": ai_response})
+    except Exception as exc:
+        safe_log(f"Agent error: {exc!r}")
+        raise HTTPException(status_code=500, detail="Error generating AI response")
+
+    try:
+        audio_url = generate_elevenlabs_audio(ai_response, base_url)
+    except Exception as exc:
+        safe_log(f"Response audio error: {exc!r}")
+        audio_url = None
+
+    return {
+        "response": ai_response,
+        "audio_url": audio_url
+    }
+
 
 
 @app.post("/webhooks/voice/incoming")
@@ -309,18 +350,23 @@ def generate_elevenlabs_audio(text: str, base_url: str) -> str:
     filename = f"{uuid.uuid4().hex}.mp3"
     filepath = os.path.join(AUDIO_DIR, filename)
 
-    audio = eleven_client.text_to_speech.convert(
-        voice_id=VOICE_ID,
-        text=text,
-        model_id="eleven_turbo_v2_5",
-        output_format="mp3_44100_128",
-    )
+    try:
+        audio = eleven_client.text_to_speech.convert(
+            voice_id=VOICE_ID,
+            text=text,
+            model_id="eleven_turbo_v2_5",
+            output_format="mp3_44100_128",
+        )
 
-    with open(filepath, "wb") as f:
-        for chunk in audio:
-            f.write(chunk)
-
-    return f"{base_url}/audio/{filename}"
+        with open(filepath, "wb") as f:
+            for chunk in audio:
+                f.write(chunk)
+                
+        return f"{base_url}/audio/{filename}"
+    except Exception as e:
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        raise e
 
 
 @app.get("/audio/{filename}")
