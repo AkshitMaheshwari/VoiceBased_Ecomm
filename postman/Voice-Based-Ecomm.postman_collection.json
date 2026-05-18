@@ -169,6 +169,25 @@
         "description": "Paste filename from `<Play>` in TwiML."
       },
       "response": []
+    },
+    {
+      "name": "8. Chat API (POST /api/chat)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"session_id\": \"{{callSid}}\",\r\n  \"query\": \"show me lenovo laptops\"\r\n}"
+        },
+        "url": "{{baseUrl}}/api/chat",
+        "description": "The JSON endpoint powering the frontend web UI. Same AI pipeline as voice."
+      },
+      "response": []
     }
   ]
 }

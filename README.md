@@ -39,11 +39,11 @@ Converted cleaned data into searchable embeddings:
 This allows us to search products semantically ("show me gaming laptops") while also filtering by budget, brand, or category.
 
 #### 4️⃣ Retriever with Smart Filtering
-Built a retriever that combines semantic search with metadata filters:
+Built a hybrid retriever that merges semantic dense embeddings with BM25 sparse keyword searches using Reciprocal Rank Fusion (RRF):
 - User says "Samsung phone under 20000" 
 - System extracts: `brand=Samsung`, `category=Smartphone`, `budget=20000`
-- ChromaDB query: Semantic search + `$and` filters
-- Returns top 3 matching products
+- Hybrid query: Dense vectors + BM25 index + `$and` filters
+- Automatically caches query embeddings and handles case-insensitive metadata variations.
 
 #### 5️⃣ Session Memory
 Implemented two types of memory for natural conversations:
@@ -56,13 +56,14 @@ Connected everything to a fast LLM for response generation:
 - Takes: Retrieved products + Conversation history + User preferences + Current query
 - Generates: Short, voice-friendly responses (1-2 sentences)
 
-#### 7️⃣ Voice Integration (Twilio + ElevenLabs)
-Final integration for phone-based interaction:
+#### 7️⃣ Voice & Web UI Integration 
+Final integration for multi-modal interaction:
 - **Twilio Voice**: Handles incoming calls and speech-to-text
 - **ElevenLabs**: Converts AI responses to natural human-like voice
-- **FastAPI**: Webhook server that orchestrates everything
+- **Chat Web UI**: A sleek, dark-themed frontend (`static/index.html`) using the new `/api/chat` endpoint.
+- **FastAPI**: Backend server that orchestrates Twilio webhooks, LLM queries, and the frontend server.
 
-**Result**: Customer calls → Speaks → Gets AI response in natural voice → Continues shopping! 🛒
+**Result**: Customer calls or types in the web interface → interacts naturally → Gets AI response synthesized back seamlessly! 🛒
 
 ---
 
