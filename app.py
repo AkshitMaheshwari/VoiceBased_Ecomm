@@ -320,10 +320,24 @@ async def health():
 
 
 def get_response(query: str, session: dict) -> str:
-    from retriever import retrieve
+    from retriever import retrieve, format_context
+
+    q = query.strip().lower()
+    if q in {"hi", "hello", "hey", "yo"}:
+        return "Hi! Tell me what you are shopping for and I will curate options."
+    if q.startswith("my name is "):
+        name = query.strip()[11:].strip()
+        if name:
+            session["user_name"] = name
+            return f"Nice to meet you, {name}. What are you shopping for today?"
+        return "Nice to meet you. What are you shopping for today?"
+    if "your name" in q or "who are you" in q:
+        return "I am your shopping assistant. What are you looking for today?"
+    if "what can you do" in q or "what do you do" in q:
+        return "I can help you find products, compare options, and answer questions about the catalog. What are you shopping for?"
 
     docs = retrieve(query, session["memory"])
-    context = "\n".join([d.page_content for d in docs]) if docs else ""
+    context = format_context(docs)
 
     history = "\n".join(
         [f"User: {h['user']}\nAI: {h['ai']}" for h in session["history"][-3:]]

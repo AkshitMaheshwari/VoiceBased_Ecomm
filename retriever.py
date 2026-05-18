@@ -26,6 +26,7 @@ _CACHE: dict = {}
 _CACHE_TTL_SECONDS = 300  # 5 minutes
 
 
+
 def _cache_key(query: str, filters: dict | None) -> str:
     payload = f"{query.strip().lower()}::{str(filters)}"
     return hashlib.md5(payload.encode()).hexdigest()
@@ -40,6 +41,31 @@ def _cache_get(key: str):
 
 def _cache_set(key: str, docs):
     _CACHE[key] = {"docs": docs, "ts": time.time()}
+
+
+def _build_filters(user_memory) -> dict | None:
+    conditions = []
+
+    brand = user_memory.pref.get("brand")
+    category = user_memory.pref.get("category")
+    budget = user_memory.pref.get("budget")
+
+    if brand:
+        title_brand = brand.title()
+        conditions.append({"brand": {"$in": [brand, brand.lower(), brand.upper(), title_brand]}})
+
+    if category:
+        title_cat = category.title()
+        conditions.append({"category": {"$in": [category, category.lower(), category.upper(), title_cat]}})
+
+    if budget:
+        conditions.append({"price": {"$lte": budget}})
+
+    if len(conditions) > 1:
+        return {"$and": conditions}
+    if len(conditions) == 1:
+        return conditions[0]
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -160,43 +186,9 @@ print("[OK] Retrieval engine ready.\n", flush=True)
 def retrieve(query: str, user_memory) -> list:
     """
     Hybrid-retrieve products matching query + user preferences.
-    Filtering is post-retrieval only (soft substring matching) to keep
-    BM25 always active and avoid ChromaDB exact-match failures.
-    Category intent is handled by the semantic/BM25 search itself.
     """
-    docs = _retriever.search(query, k=15, filters=None)
-
-    brand  = user_memory.pref.get("brand")
-    budget = user_memory.pref.get("budget")
-
-    filtered = []
-    for doc in docs:
-        meta = doc.metadata
-
-        # Brand soft-filter: case-insensitive substring match
-        if brand:
-            doc_brand = str(meta.get("brand", "")).lower()
-            if brand.lower() not in doc_brand:
-                continue
-
-        # Price filter
-        if budget:
-            raw_price = meta.get("price")
-            if raw_price is not None:
-                try:
-                    if float(raw_price) > float(budget):
-                        continue
-                except (ValueError, TypeError):
-                    pass  # unparseable price → keep the doc
-
-        filtered.append(doc)
-
-    # If brand filter wiped everything out, fall back to top unfiltered results
-    if not filtered and docs:
-        print("Filters returned 0 docs — falling back to unfiltered results", flush=True)
-        filtered = docs
-
-    return filtered[:3]
+    filters = _build_filters(user_memory)
+    return _retriever.search(query, k=3, filters=filters)
 
 
 def format_context(docs: list) -> str:
@@ -211,7 +203,11 @@ def format_context(docs: list) -> str:
     for i, doc in enumerate(docs, 1):
         meta = doc.metadata
         block = f"[Product {i}]\n"
-        block += doc.page_content
+        # Truncate page_content to avoid blowing up the LLM token limit
+        content = doc.page_content
+        if len(content) > 300:
+            content = content[:300] + "... (truncated)"
+        block += content
         if meta:
             extras = []
             for key in ("brand", "category", "price", "rating"):

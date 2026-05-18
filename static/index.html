@@ -4,7 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Voice shopping assistant</title>
-    <link rel="stylesheet" href="/static/styles.css?v=4" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css?v=5" />
   </head>
   <body>
     <main class="app-shell">
@@ -49,6 +55,49 @@
 
           <p id="status" class="status" aria-live="polite">Ready.</p>
         </section>
+
+        <section class="chat-console" aria-labelledby="chat-title">
+          <div class="section-head">
+            <p>AI concierge</p>
+            <h2 id="chat-title">Chat for lightning-fast product picks</h2>
+          </div>
+
+          <div class="chat-shell">
+            <div class="chat-meta">
+              <div>
+                <p class="chat-label">Session</p>
+                <p id="chat-session" class="chat-session">Generating...</p>
+              </div>
+              <button type="button" id="btn-reset-chat" class="btn small ghost">New session</button>
+            </div>
+
+            <div id="chat-log" class="chat-log" role="log" aria-live="polite"></div>
+
+            <div class="chat-quick" role="list">
+              <button type="button" class="chip" data-prompt="Show me budget headphones under $50">
+                Budget headphones
+              </button>
+              <button type="button" class="chip" data-prompt="Compare two smart watches for fitness tracking">
+                Compare smart watches
+              </button>
+              <button type="button" class="chip" data-prompt="I need a minimalist work backpack">
+                Work backpack
+              </button>
+            </div>
+
+            <form id="chat-form" class="chat-form" autocomplete="off">
+              <input
+                type="text"
+                id="chat-input"
+                name="chat-input"
+                placeholder="Ask for a product, a comparison, or a quick pick"
+              />
+              <button type="submit" class="btn primary" id="btn-send">Send</button>
+            </form>
+
+            <p id="chat-status" class="chat-status" aria-live="polite">Say hi to get started.</p>
+          </div>
+        </section>
       </section>
 
       <section class="market-lane" aria-label="Shopping inspiration">
@@ -77,6 +126,6 @@
     </main>
 
     <script src="https://unpkg.com/@twilio/voice-sdk@2.18.1/dist/twilio.min.js"></script>
-    <script src="/static/app.js?v=4"></script>
+    <script src="/static/app.js?v=5"></script>
   </body>
 </html>

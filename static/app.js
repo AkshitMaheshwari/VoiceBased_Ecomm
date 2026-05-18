@@ -4,13 +4,129 @@
   const btnStart = document.getElementById("btn-start");
   const btnHangup = document.getElementById("btn-hangup");
   const btnHealth = document.getElementById("btn-refresh-health");
+  const chatLog = document.getElementById("chat-log");
+  const chatForm = document.getElementById("chat-form");
+  const chatInput = document.getElementById("chat-input");
+  const chatStatus = document.getElementById("chat-status");
+  const chatSession = document.getElementById("chat-session");
+  const btnResetChat = document.getElementById("btn-reset-chat");
+  const chatChips = Array.from(document.querySelectorAll(".chip"));
 
   let device = null;
   let activeCall = null;
+  let sessionId = null;
 
   function log(msg) {
     statusEl.textContent = msg;
     console.log("[voice-ui]", msg);
+  }
+
+  function setChatStatus(msg) {
+    if (chatStatus) {
+      chatStatus.textContent = msg;
+    }
+  }
+
+  function ensureSessionId() {
+    if (!chatSession) return null;
+    const stored = localStorage.getItem("chat_session_id");
+    if (stored) {
+      sessionId = stored;
+    } else {
+      const rand = Math.random().toString(36).slice(2, 10);
+      sessionId = "web-" + rand;
+      localStorage.setItem("chat_session_id", sessionId);
+    }
+    chatSession.textContent = sessionId;
+    return sessionId;
+  }
+
+  function resetChatSession() {
+    if (!chatSession) return;
+    const rand = Math.random().toString(36).slice(2, 10);
+    sessionId = "web-" + rand;
+    localStorage.setItem("chat_session_id", sessionId);
+    chatSession.textContent = sessionId;
+    if (chatLog) {
+      chatLog.innerHTML = "";
+    }
+    addChatBubble("bot", "New session ready. Tell me what you want to shop.");
+    setChatStatus("Fresh session started.");
+  }
+
+  function addChatBubble(role, text, audioUrl) {
+    if (!chatLog) return null;
+    const bubble = document.createElement("div");
+    bubble.className = "chat-bubble " + role;
+    bubble.textContent = text;
+
+    if (audioUrl) {
+      const audioWrap = document.createElement("div");
+      audioWrap.className = "chat-audio";
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = "Play voice";
+      btn.addEventListener("click", () => {
+        const audio = new Audio(audioUrl);
+        audio.play().catch(() => {});
+      });
+      audioWrap.appendChild(btn);
+      bubble.appendChild(audioWrap);
+    }
+
+    chatLog.appendChild(bubble);
+    chatLog.scrollTop = chatLog.scrollHeight;
+    return bubble;
+  }
+
+  function addTypingBubble() {
+    return addChatBubble("bot", "Thinking...");
+  }
+
+  async function sendChat(query) {
+    if (!query || !chatLog || !chatInput) return;
+    const trimmed = query.trim();
+    if (!trimmed) return;
+
+    addChatBubble("user", trimmed);
+    chatInput.value = "";
+    chatInput.focus();
+    setChatStatus("Pulling recommendations...");
+
+    if (!sessionId) {
+      ensureSessionId();
+    }
+
+    const typing = addTypingBubble();
+    const submitBtn = document.getElementById("btn-send");
+    if (submitBtn) submitBtn.disabled = true;
+    chatInput.disabled = true;
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId || "default_session", query: trimmed }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (typing && typing.parentNode) typing.parentNode.removeChild(typing);
+
+      if (!res.ok) {
+        addChatBubble("bot", data.detail || "Something went wrong. Try again.");
+        setChatStatus("Issue talking to the assistant.");
+        return;
+      }
+
+      addChatBubble("bot", data.response || "No response.", data.audio_url || null);
+      setChatStatus("Ready for the next question.");
+    } catch (e) {
+      if (typing && typing.parentNode) typing.parentNode.removeChild(typing);
+      addChatBubble("bot", "Network error. Please try again in a moment.");
+      setChatStatus("Network error.");
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+      chatInput.disabled = false;
+    }
   }
 
   async function refreshHealth() {
@@ -154,4 +270,32 @@
   btnHealth.addEventListener("click", refreshHealth);
 
   refreshHealth();
+
+  if (chatForm && chatInput) {
+    ensureSessionId();
+    addChatBubble("bot", "Hi! Tell me what you are shopping for and I will curate options.");
+
+    chatForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      sendChat(chatInput.value);
+    });
+
+    chatInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        sendChat(chatInput.value);
+      }
+    });
+  }
+
+  if (btnResetChat) {
+    btnResetChat.addEventListener("click", resetChatSession);
+  }
+
+  chatChips.forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const prompt = chip.getAttribute("data-prompt") || "";
+      sendChat(prompt);
+    });
+  });
 })();
